@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Farayzin Planner Studio — Automação & SRT Sync para Canais Dark</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="app-layout">
+    <!-- BARRA LATERAL (SIDEBAR) -->
+    <aside class="sidebar">
+      <div class="logo-area">
+        <div class="logo-icon">⚡</div>
+        <div class="logo-text">
+          <h2>Farayzin Planner</h2>
+          <span class="badge">STUDIO</span>
+        </div>
+      </div>
+
+      <nav class="nav-menu">
+        <button class="nav-item active" data-tab="dashboard">
+          <span class="icon">📁</span>
+          <span>Projetos</span>
+        </button>
+        <button class="nav-item" data-tab="script">
+          <span class="icon">✍️</span>
+          <span>Roteiro & Tags</span>
+        </button>
+        <button class="nav-item" data-tab="characters">
+          <span class="icon">🎭</span>
+          <span>Personagens</span>
+        </button>
+        <button class="nav-item" data-tab="srtsync">
+          <span class="icon">⏱️</span>
+          <span>SRT Sync & Timeline</span>
+        </button>
+        <button class="nav-item" data-tab="export">
+          <span class="icon">🚀</span>
+          <span>Exportar & Render</span>
+        </button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="system-status">
+          <div class="status-indicator online" id="serverStatusIndicator"></div>
+          <div class="status-info">
+            <span class="status-title" id="serverStatusText">Conectado</span>
+            <small id="ffmpegStatusText">FFmpeg Ativo</small>
+          </div>
+        </div>
+        <div class="version-tag">Farayzin Studio v2.0 • 100% Offline</div>
+      </div>
+    </aside>
+
+    <!-- ÁREA PRINCIPAL -->
+    <main class="main-content">
+      <!-- CABEÇALHO -->
+      <header class="top-header">
+        <div class="current-project-info">
+          <span class="label">PROJETO ATUAL:</span>
+          <h1 id="activeProjectTitle">Nenhum projeto selecionado</h1>
+        </div>
+        <div class="header-actions">
+          <button class="btn btn-secondary" id="btnSaveProject">💾 Salvar Projeto</button>
+          <button class="btn btn-primary" id="btnNewProjectModal">+ Novo Projeto</button>
+        </div>
+      </header>
+
+      <!-- CONTEÚDO DAS ABAS -->
+      <div class="tab-content-area">
+
+        <!-- ABA 1: DASHBOARD DE PROJETOS -->
+        <section id="tab-dashboard" class="tab-pane active">
+          <div class="pane-header">
+            <div>
+              <h2>Painel de Projetos</h2>
+              <p>Gerencie seus vídeos, roteiros e sincronizações de canais dark</p>
+            </div>
+            <button class="btn btn-primary" onclick="openNewProjectModal()">+ Criar Novo Projeto</button>
+          </div>
+
+          <div class="projects-grid" id="projectsListContainer">
+            <!-- Projetos carregados dinamicamente via JS -->
+          </div>
+        </section>
+
+        <!-- ABA 2: ROTEIRO & PROMPTS COM TAGS -->
+        <section id="tab-script" class="tab-pane">
+          <div class="pane-header">
+            <div>
+              <h2>Roteiro, Cenas & Prompts com Tags</h2>
+              <p>Escreva seu texto e utilize tags como <code>[i]</code> para imagem, <code>[v]</code> para vídeo e <code>[p:Nome]</code> para personagem.</p>
+            </div>
+            <div class="btn-group">
+              <button class="btn btn-secondary" id="btnProcessScript">⚡ Dividir em Cenas</button>
+              <button class="btn btn-primary" id="btnGenerateBatchPrompts">📋 Copiar Todos os Prompts</button>
+            </div>
+          </div>
+
+          <div class="script-workspace">
+            <div class="editor-col">
+              <div class="panel-card">
+                <div class="card-title-bar">
+                  <span>Editor de Roteiro Bruto</span>
+                  <div class="tag-shortcuts">
+                    <span class="tag-pill" onclick="insertTag('[i]')">[i] Imagem</span>
+                    <span class="tag-pill" onclick="insertTag('[v]')">[v] Vídeo</span>
+                    <span class="tag-pill" onclick="insertTag('[p:Guerreiro]')">[p:Personagem]</span>
+                    <span class="tag-pill" onclick="insertTag('[voz:Narrador]')">[voz:Locutor]</span>
+                  </div>
+                </div>
+                <textarea id="scriptInput" placeholder="Cole ou digite seu roteiro aqui... Exemplo:&#10;&#10;[i] [p:Lucas] Lucas caminhava pela floresta sombria observando as árvores antigas.&#10;&#10;[v] De repente, um raio cortou o céu iluminando um castelo abandonado nas montanhas.&#10;&#10;[i] [p:Lucas] Ele sabia que aquele era o ponto sem retorno."></textarea>
+              </div>
+            </div>
+
+            <div class="scenes-col">
+              <div class="panel-card">
+                <div class="card-title-bar">
+                  <span>Cenas Estruturadas (<span id="sceneCountLabel">0</span>)</span>
+                  <button class="btn-sm btn-secondary" onclick="addCustomScene()">+ Cena Vazia</button>
+                </div>
+                <div class="scenes-list" id="scenesCardsContainer">
+                  <!-- Cenas geradas dinamicamente -->
+                  <div class="empty-state">Escreva um roteiro e clique em "Dividir em Cenas" para gerar a estrutura.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ABA 3: PERSONAGENS CONSISTENTES -->
+        <section id="tab-characters" class="tab-pane">
+          <div class="pane-header">
+            <div>
+              <h2>Personagens Consistentes (Ingredientes)</h2>
+              <p>Mantenha a mesma fisionomia, estilo e roupas em todas as imagens do seu canal dark.</p>
+            </div>
+            <button class="btn btn-primary" onclick="openNewCharacterModal()">+ Novo Personagem</button>
+          </div>
+
+          <div class="characters-grid" id="charactersListContainer">
+            <!-- Cards de personagens -->
+          </div>
+        </section>
+
+        <!-- ABA 4: SRT SYNC & TIMELINE -->
+        <section id="tab-srtsync" class="tab-pane">
+          <div class="pane-header">
+            <div>
+              <h2>Sincronizador Automático SRT & Áudio</h2>
+              <p>Alinhe o áudio da sua narração e arquivo de legendas .SRT com as imagens e vídeos das cenas.</p>
+            </div>
+            <div class="btn-group">
+              <label class="btn btn-secondary upload-btn">
+                📂 Importar .SRT
+                <input type="file" id="srtFileInput" accept=".srt" style="display:none;">
+              </label>
+              <label class="btn btn-secondary upload-btn">
+                🎵 Importar Áudio (.mp3 / .wav)
+                <input type="file" id="audioFileInput" accept="audio/*" style="display:none;">
+              </label>
+              <button class="btn btn-primary" id="btnAutoSync">⚡ Sincronizar Tudo Automaticamente</button>
+            </div>
+          </div>
+
+          <div class="sync-workspace">
+            <!-- PLAYER & MONITOR -->
+            <div class="monitor-row">
+              <div class="video-preview-box">
+                <div class="preview-screen" id="previewScreen">
+                  <div class="preview-placeholder" id="previewPlaceholder">
+                    <span>🎬 Monitor de Preview</span>
+                    <small>Selecione uma cena ou dê play na timeline</small>
+                  </div>
+                  <img id="previewImage" src="" style="display:none; width:100%; height:100%; object-fit:contain;">
+                  <div class="preview-subtitle-overlay" id="previewSubtitleOverlay"></div>
+                </div>
+                <div class="audio-controls">
+                  <button class="btn-icon" id="btnPlayPause">▶</button>
+                  <span class="time-display" id="timeDisplay">00:00 / 00:00</span>
+                  <input type="range" class="seek-bar" id="seekBar" min="0" max="100" value="0">
+                  <audio id="globalAudioPlayer" style="display:none;"></audio>
+                </div>
+              </div>
+
+              <div class="sync-summary-card">
+                <h3>Visão Geral da Sincronização</h3>
+                <div class="summary-item">
+                  <span>Duração Total:</span>
+                  <strong id="summaryDuration">0s</strong>
+                </div>
+                <div class="summary-item">
+                  <span>Total de Cenas:</span>
+                  <strong id="summarySceneCount">0</strong>
+                </div>
+                <div class="summary-item">
+                  <span>Status do Áudio:</span>
+                  <strong id="summaryAudioStatus">Nenhum áudio</strong>
+                </div>
+                <div class="summary-item">
+                  <span>Status do SRT:</span>
+                  <strong id="summarySrtStatus">Nenhum arquivo</strong>
+                </div>
+                <div class="tts-section">
+                  <h4>Narração Offline (Voz Nativa)</h4>
+                  <p>Gere narração direta no navegador sem precisar de internet ou chaves de API.</p>
+                  <div class="tts-controls">
+                    <select id="ttsVoiceSelect" class="form-control"></select>
+                    <button class="btn btn-secondary btn-sm" id="btnGenerateOfflineTTS">🎙️ Narrar Cenas com Voz Nativa</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- TIMELINE VISUAL INTERATIVA -->
+            <div class="timeline-container">
+              <div class="timeline-header">
+                <span>TIMELINE MULTITRACK</span>
+                <span id="timelineZoomLabel">Escala: Normal</span>
+              </div>
+              <div class="timeline-tracks" id="timelineTracks">
+                <div class="timeline-ruler" id="timelineRuler"></div>
+                <div class="timeline-track video-track" id="timelineVideoTrack">
+                  <!-- Blocos de cenas visuais -->
+                </div>
+                <div class="timeline-track subtitle-track" id="timelineSubtitleTrack">
+                  <!-- Blocos de legenda SRT -->
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ABA 5: EXPORTAR & RENDER -->
+        <section id="tab-export" class="tab-pane">
+          <div class="pane-header">
+            <div>
+              <h2>Exportação e Renderização Final</h2>
+              <p>Exporte para o CapCut Desktop ou renderize o vídeo MP4 diretamente no seu computador com FFmpeg.</p>
+            </div>
+          </div>
+
+          <div class="export-cards-grid">
+            <!-- CARD CAPCUT -->
+            <div class="export-card">
+              <div class="card-icon">⚡</div>
+              <h3>Exportar para CapCut Desktop</h3>
+              <p>Gera uma pasta com todas as mídias nomeadas numericamente e os dados de corte e duração precisos para colocar direto na linha do tempo do CapCut.</p>
+              <ul class="features-checklist">
+                <li>✓ Pastas de mídias organizadas cena a cena</li>
+                <li>✓ Arquivo sincronizacao.json de alinhamento</li>
+                <li>✓ Guia rápido LEIA-ME passo a passo</li>
+              </ul>
+              <button class="btn btn-primary btn-block" id="btnExportCapCut">📦 Gerar Pacote CapCut</button>
+            </div>
+
+            <!-- CARD RENDER DIRETO MP4 (FFMPEG) -->
+            <div class="export-card featured">
+              <div class="card-icon">🎬</div>
+              <h3>Renderizar MP4 Localmente</h3>
+              <p>Gera o vídeo final 1080p Full HD diretamente na sua máquina usando o motor FFmpeg com aceleração por hardware Intel Iris Xe.</p>
+              <ul class="features-checklist">
+                <li>✓ 100% Offline (sem limite de minutos)</li>
+                <li>✓ Resolução 1920x1080 Full HD 30 FPS</li>
+                <li>✓ Cortes sincronizados automaticamente com a fala</li>
+              </ul>
+              <button class="btn btn-success btn-block" id="btnRenderMP4">🎥 Renderizar Vídeo MP4 Agora</button>
+            </div>
+          </div>
+
+          <div class="render-progress-area" id="renderProgressArea" style="display:none;">
+            <h3>Processando Renderização...</h3>
+            <div class="progress-bar-container">
+              <div class="progress-bar-fill" id="renderProgressBar" style="width: 10%;"></div>
+            </div>
+            <p id="renderStatusMessage">Iniciando motor FFmpeg...</p>
+            <div id="renderDownloadBox" style="display:none; margin-top:15px;">
+              <a href="#" id="renderDownloadBtn" class="btn btn-primary" download>⬇️ Baixar Vídeo MP4 Pronto</a>
+            </div>
+          </div>
+        </section>
+
+      </div>
+    </main>
+  </div>
+
+  <!-- MODAL NOVO PROJETO -->
+  <div class="modal" id="modalNewProject">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Novo Projeto de Canal Dark</h3>
+        <button class="close-btn" onclick="closeModal('modalNewProject')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <label>Nome do Projeto:</label>
+        <input type="text" id="newProjectName" class="form-control" placeholder="Ex: Mistérios da Amazônia #01">
+        
+        <label style="margin-top:15px;">Nicho / Categoria:</label>
+        <select id="newProjectNiche" class="form-control">
+          <option value="curiosidades">Curiosidades & Fatos Misteriosos</option>
+          <option value="historia">História & Guerras</option>
+          <option value="financas">Finanças & Riqueza</option>
+          <option value="filosofia">Filosofia & Estoicismo</option>
+          <option value="terror">Terror & Creepypasta</option>
+          <option value="outro">Outro / Geral</option>
+        </select>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('modalNewProject')">Cancelar</button>
+        <button class="btn btn-primary" id="btnConfirmCreateProject">Criar Projeto</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL NOVO PERSONAGEM -->
+  <div class="modal" id="modalNewCharacter">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Cadastrar Personagem Consistente</h3>
+        <button class="close-btn" onclick="closeModal('modalNewCharacter')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <label>Nome do Personagem:</label>
+        <input type="text" id="charNameInput" class="form-control" placeholder="Ex: Guerreiro Arthur">
+
+        <label style="margin-top:10px;">Descrição Física e Visual:</label>
+        <textarea id="charPromptInput" class="form-control" rows="3" placeholder="Ex: Homem de 35 anos, cicatriz no olho direito, barba cerrada, armadura medieval desgastada com capa escura..."></textarea>
+
+        <label style="margin-top:10px;">Estilo de Arte / Fotografia:</label>
+        <input type="text" id="charStyleInput" class="form-control" value="Cinematic lighting, 8k, photorealistic, hyperdetailed, dark dramatic mood">
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('modalNewCharacter')">Cancelar</button>
+        <button class="btn btn-primary" id="btnSaveCharacter">Salvar Personagem</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCRIPT PRINCIPAL -->
+  <script src="app.js"></script>
+</body>
+</html>
+
