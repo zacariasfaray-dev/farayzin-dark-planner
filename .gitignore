@@ -1,0 +1,5 @@
+node_modules/
+04-build/node_modules/
+04-build/data/uploads/
+04-build/data/exports/
+*.log
